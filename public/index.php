@@ -1,9 +1,7 @@
 <?php
-
-date_default_timezone_set('UTC');
-
 use Phalcon\Mvc\Micro;
-use Phalcon\Events\Manager as EventsManager;
+
+date_default_timezone_set('America/Sao_Paulo');
 
 define('APPLICATION_ENV', getenv('APPLICATION_ENV') ?: 'production');
 
@@ -21,43 +19,17 @@ try {
 
     require __DIR__ . '/../vendor/autoload.php';
 
-    /*
-     * Read the configuration
-     */
     $config = include __DIR__ . '/../config/config.php';
 
-    /**
-     * Include Autoloader.
-     */
     include APP_PATH . '/config/loader.php';
-
-    /**
-     * Include Services.
-     */
     include APP_PATH . '/config/services.php';
-
-    /**
-     * Include ACL.
-     */
     include APP_PATH . '/config/acl.php';
 
-    /*
-     * Starting the application
-     * Assign service locator to the application
-     */
     $app = new Micro($di);
 
-    /**
-     * Include Application.
-     */
     include APP_PATH . '/config/app.php';
 
-    /*
-     * Handle the request
-     */
     $app->handle();
-    $response = $app->response;
-    $response->setHeader('Access-Control-Allow-Origin', '*');
 
 } catch (\Exception $e) {
     if (APPLICATION_ENV === 'development') {
