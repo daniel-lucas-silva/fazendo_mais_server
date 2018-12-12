@@ -1,16 +1,13 @@
 <?php
-/**
- * Services are globally registered in this file
- *
- * @var \Phalcon\Config $config
- */
 
 use Phalcon\Mvc\View\Simple as View;
 use Phalcon\Di\FactoryDefault;
 use Phalcon\Mvc\Url as UrlResolver;
 use Phalcon\Crypt;
 use Phalcon\Mvc\Model\Manager as ModelsManager;
+use Phalcon\Session\Adapter\Files as Session;
 use Firebase\JWT\JWT as JWT;
+use PHPMailer\PHPMailer\PHPMailer;
 
 $di = new FactoryDefault();
 
@@ -75,4 +72,30 @@ $di->setShared('db_log', function () use ($config) {
     $connection->setNestedTransactionsWithSavepoints(true);
 
     return $connection;
+});
+
+$di->setShared('session', function () {
+  $session = new Session();
+  $session->start();
+
+  return $session;
+});
+
+$di->setShared('mailer', function () use ($config) {
+  $mailConfig = $config->mail->toarray();
+
+  $mail = new PHPMailer(true);
+
+  $mail->SMTPDebug = APPLICATION_ENV == 'development' ? 2 : 0;
+  $mail->isSMTP();
+  $mail->Host = $mailConfig['smtp']['server'];
+  $mail->SMTPAuth = true;
+  $mail->Username = $mailConfig['smtp']['username'];
+  $mail->Password = $mailConfig['smtp']['password'];
+  $mail->SMTPSecure = $mailConfig['smtp']['security'];
+  $mail->Port = $mailConfig['smtp']['port'];
+
+  $mail->setFrom($mailConfig['fromEmail'], $mailConfig['fromName']);
+
+  return $mail;
 });

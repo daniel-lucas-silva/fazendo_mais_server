@@ -1,6 +1,7 @@
 {
     "require": {
         "firebase/php-jwt": "^5.0",
-        "endyjasmi/cuid": "^2.0"
+        "facebook/graph-sdk": "^5.6",
+        "phpmailer/phpmailer": "^6.0"
     }
 }

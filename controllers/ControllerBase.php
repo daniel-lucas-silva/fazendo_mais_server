@@ -184,27 +184,6 @@ class ControllerBase extends Controller
     die();
   }
 
-  public function validPhone($phone) {
-    preg_match('/^(?:(?:\+|00)?(55)\s?)?(?:\(?([1-9][0-9])\)?\s?)?(?:((?:9\d|[2-9])\d{3})\-?(\d{4}))$/', $phone, $matches);
-    return $matches;
-  }
-
-  function siteURL() {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-    $domainName = $_SERVER['HTTP_HOST'] . "/";
-    return $protocol.$domainName;
-  }
-
-  function base64ToImg($data) {
-
-    $filename = uniqid().".png";
-    $dir = APP_PATH . "/public/files/";
-
-    if(file_put_contents($dir.$filename,file_get_contents($data))){
-      return $this->siteURL()."/files/".$filename;
-    }
-  }
-
   function genSlug($text) {
     $text = preg_replace('~[^\pL\d]+~u', '-', $text);
     $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
@@ -220,51 +199,25 @@ class ControllerBase extends Controller
     return $text;
   }
 
-  function genKeywords($text) {
-    $text = preg_replace('~[^\pL\d]+~u', ' ', $text);
-    $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
-    $text = preg_replace('~[^ \w]+~', '', $text);
-    $text = trim($text, ' ');
-    $text = preg_replace('~ +~', ' ', $text);
-    $text = strtolower($text);
-    if (empty($text))
-      return 'n-a';
-    return $text;
-  }
+  function genImage($base64, $width = 300, $height = 300, $quality = 50) {
+//    $image=base64_decode($base64);
+    $image = file_get_contents($base64);
 
-  function genImage($data) {
-
-  }
-
-  function genThumbnail($imagedata) {
-
-    $image=base64_decode($imagedata);
-
-    $im->readimageblob($image);
-    $im->thumbnailImage(200,82,true);
-    // Add a subtle border
-    $color=new ImagickPixel();
-    $color->setColor("rgb(220,220,220)");
-    $im->borderImage($color,1,1);
-
-//    Output the image
-//    $output = $im->getimageblob();
-//    $outputtype = $im->getFormat();
-
+    $im = new Imagick ();
+    $im->readImageBlob($image);
+    $im->setImageFormat("jpeg");
+    $im->setFormat("jpeg");
+    $im->cropThumbnailImage( $width, $height);
     $im->optimizeImageLayers();
-
-// Compression and quality
     $im->setImageCompression(Imagick::COMPRESSION_JPEG);
-    $im->setImageCompressionQuality(25);
+    $im->setImageCompressionQuality($quality);
 
-// Write the image back
-    $im->writeImages("File_Path/Image_Opti.jpg", true);
+    $output = $im->getimageblob();
 
-//    header("Content-type: $outputtype");
-//    echo $output;
+    return $output;
   }
 
-  function delImage($path) {}
+  function storeFile($file, $path) { } // TODO: ...
 
-  // '/src="(data:image\/[^;]+;base64[^"]+)"/i' extract image from text
+  function delFile($path) { } // TODO: ...
 }
