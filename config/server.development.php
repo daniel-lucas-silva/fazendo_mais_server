@@ -6,7 +6,7 @@ return [
         'host' => '127.0.0.1',
         'username' => 'root',
         'password' => 'root',
-        'dbname' => 'fazendo_mais',
+        'dbname' => 'fazendo.mais',
         'charset' => 'utf8',
     ],
     'log_database' => [

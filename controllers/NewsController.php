@@ -67,8 +67,8 @@ class NewsController extends ControllerBase
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
-      $data = $this->array_push_assoc($data, 'rows_per_page', $rows);
-      $data = $this->array_push_assoc($data, 'total_rows', $total);
+      $data = $this->array_push_assoc($data, 'size', $rows);
+      $data = $this->array_push_assoc($data, 'total', $total);
       $data = $this->array_push_assoc($data, 'rows', $news->toArray());
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
@@ -77,7 +77,7 @@ class NewsController extends ControllerBase
   public function search($text) {
     $this->initializeGet();
 
-    $rows = 56;
+    $rows = 22;
     $order_by = "created_at desc";
     $offset = 0;
     $limit = $offset + $rows;
@@ -117,11 +117,10 @@ class NewsController extends ControllerBase
               title,
               content,
               created_at,
-              MATCH (title, content) AGAINST ('*{$text}*') AS relevance,
-              MATCH (title) AGAINST ('*{$text}*') AS title_relevance
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
             FROM entity_news 
             WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
-            ORDER BY title_relevance DESC, relevance DESC, {$order_by} 
+            ORDER BY relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
     $query = $this->db->query($sql);
@@ -134,8 +133,8 @@ class NewsController extends ControllerBase
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
-      $data = $this->array_push_assoc($data, 'rows_per_page', $rows);
-      $data = $this->array_push_assoc($data, 'total_rows', $total);
+      $data = $this->array_push_assoc($data, 'size', $rows);
+      $data = $this->array_push_assoc($data, 'total', $total);
       $data = $this->array_push_assoc($data, 'rows', $news);
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
@@ -165,13 +164,13 @@ class NewsController extends ControllerBase
 
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
-    if(!($token['user_entity'] || $token['level'] == 'Admin')) {
+    if(!($token['user_entity'] || $token['user_level'] == 'Admin')) {
       $this->buildErrorResponse(403, "Proibido!");
     } else {
       $newNews = new EntityNews();
-      $newNews->entity_id = $token['level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
+      $newNews->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
 
-      $columns = ['title', 'content', 'thumbnail'];
+      $columns = ['title', 'content'];
 
       foreach($columns as $column) {
         if(!empty($this->request->getPost($column))) {
@@ -179,7 +178,7 @@ class NewsController extends ControllerBase
         }
       }
 
-      $newNews->slug = $this->slugify(substr($token['user_entity'],2,5)." ".$this->request->getPost('title'));
+      $newNews->slug = $this->genSlug(substr($token['user_entity'],2,3)." ".$this->request->getPost('title'));
 
       if (!$newNews->save()) {
         $this->db->rollback();
@@ -205,7 +204,7 @@ class NewsController extends ControllerBase
 
     $news = EntityNews::findFirst(
       [
-        'id = :id:',
+        'id = :id: OR slug = :id:',
         'bind' => ['id' => $id]
       ]
     );
@@ -214,7 +213,7 @@ class NewsController extends ControllerBase
       $this->buildErrorResponse(404, "Não encontrado!");
     } else {
 
-      if(!($token['user_entity'] == $news->entity_id || $token['level'] == 'Admin')) {
+      if(!($token['user_entity'] == $news->entity_id || $token['user_level'] == 'Admin')) {
         $this->buildErrorResponse(403, "Proibido!");
       } else {
 
@@ -226,7 +225,7 @@ class NewsController extends ControllerBase
           }
         }
 
-        $news->slug = $this->slugify(substr($token['user_entity'],2,5)." ".$this->request->getPut('title'));
+        $news->slug = $this->genSlug(substr($token['user_entity'],2,3)." ".$this->request->getPut('title'));
 
         if (!$news->save()) {
           $this->db->rollback();
@@ -252,7 +251,7 @@ class NewsController extends ControllerBase
 
     $news = EntityNews::findFirst(
       [
-        'id = :id:',
+        'id = :id: OR slug = :id:',
         'bind' => ['id' => $id]
       ]
     );

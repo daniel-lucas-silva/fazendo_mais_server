@@ -33,11 +33,11 @@ $di->setShared('url', function () use ($config) {
     return $url;
 });
 
-$di->set('mycrypt', function () use ($config) {
-    $crypt = new Crypt();
+$di->setShared('mycrypt', function () use ($config) {
+    $crypt = new Crypt('aes-256-ctr', true);
     $crypt->setKey($config->get('authentication')->encryption_key);
     return $crypt;
-}, true);
+});
 
 $di->setShared('jwt', function () {
     return new JWT();

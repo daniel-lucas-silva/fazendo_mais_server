@@ -61,8 +61,8 @@ class UsersController extends ControllerBase
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
-      $data = $this->array_push_assoc($data, 'rows_per_page', $rows);
-      $data = $this->array_push_assoc($data, 'total_rows', $total);
+      $data = $this->array_push_assoc($data, 'size', $rows);
+      $data = $this->array_push_assoc($data, 'total', $total);
       $data = $this->array_push_assoc($data, 'rows', $users->toArray());
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
@@ -130,8 +130,8 @@ class UsersController extends ControllerBase
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
-      $data = $this->array_push_assoc($data, 'rows_per_page', $rows);
-      $data = $this->array_push_assoc($data, 'total_rows', $total);
+      $data = $this->array_push_assoc($data, 'size', $rows);
+      $data = $this->array_push_assoc($data, 'total', $total);
       $data = $this->array_push_assoc($data, 'rows', $users);
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }

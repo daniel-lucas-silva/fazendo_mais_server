@@ -1,6 +1,6 @@
 <?php
 
-use Facebook\Facebook;
+//use Facebook\Facebook;
 
 class AuthController extends ControllerBase
 {
@@ -8,13 +8,14 @@ class AuthController extends ControllerBase
   public function login() {
 
     $this->initializePost();
+    $rawBody = $this->request->getJsonRawBody(true);
 
-    if ( empty($this->request->getPost("identity")) || empty($this->request->getPost("password")) ) {
+    if ( empty($rawBody["identity"]) || empty($rawBody["password"]) ) {
       $this->buildErrorResponse(400, "Dados incompletos.");
     } else {
 
-      $identity = $this->request->getPost("identity");
-      $password = $this->request->getPost("password");
+      $identity = $rawBody["identity"];
+      $password = $rawBody["password"];
 
       $conditions = "email = :identity: OR username = :identity:";
       $parameters = array(
@@ -159,18 +160,19 @@ class AuthController extends ControllerBase
 
   public function register() {
     $this->initializePost();
+    $rawBody = $this->request->getJsonRawBody(true);
 
     $this->db->begin();
 
     $newUser = new Users();
     $newUser->id          = uniqid('__u');
-    $newUser->email       = trim($this->request->getPost("email"));
-    $newUser->username    = trim($this->request->getPost("username"));
-    $newUser->level       = trim($this->request->getPost("is_entity")) == 'true' ? 'Entity' : 'Donor';
-    $newUser->entity_id   = trim($this->request->getPost("is_entity")) == 'true' ? 'pending' : null;
+    $newUser->email       = trim($rawBody["email"]);
+    $newUser->username    = trim($rawBody["username"]);
+    $newUser->level       = trim($rawBody["is_entity"]) == true ? 'Entity' : 'Donor';
+    $newUser->entity_id   = trim($rawBody["is_entity"]) == true ? 'pending' : null;
     $newUser->authorized  = 1;
 
-    $password_hashed = password_hash($this->request->getPost("password"), PASSWORD_BCRYPT);
+    $password_hashed = password_hash($rawBody["password"], PASSWORD_BCRYPT);
     $newUser->password = $password_hashed;
 
     if (!$newUser->save()) {
@@ -187,7 +189,7 @@ class AuthController extends ControllerBase
         "id"        => $newUser->id,
         "email"     => $newUser->email,
         "username"  => $newUser->username,
-        "thumbnail" => $newUser->thumbnail,
+        "thumbnail" => NULL,
         "level"     => $newUser->level,
         "entity"    => $newUser->entity_id
       );
@@ -240,31 +242,17 @@ class AuthController extends ControllerBase
   }
 
   public function facebook() {
-    $this->initializePost();
 
-    if ( empty($this->request->getPost("token")) ) {
-      $this->buildErrorResponse(400, "common.INCOMPLETE_DATA_RECEIVED");
-    } else {
-      $token = $this->request->getPost("token");
-
-      $facebook = new Facebook([
-        'app_id'  => "1936071843377005",
-        'app_secret' => "49ea87bbe40509b78082a4bfa06c2a4b",
-        'default_graph_version' => 'v2.1'
-      ]);
-
-      if ($user = $facebook->get('/me?fields=id,first_name,last_name,picture,email', $token)) {
-        $data = json_decode($user->getGraphUser());
-//                echo $data;
-        $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
-      }
-    }
   }
 
   public function changePassword() {
-    $this->initializePatch();
 
-    if (empty($this->request->getPut("currentPassword")) || empty($this->request->getPut("newPassword"))) {
+    $this->initializePatch();
+    $rawBody = $this->request->getJsonRawBody(true);
+
+    $this->db->begin();
+
+    if (empty($rawBody["currentPassword"]) || empty($rawBody["newPassword"])) {
       $this->buildErrorResponse(400, "Dados incompletos!");
     } else {
 
@@ -284,8 +272,8 @@ class AuthController extends ControllerBase
       if (!$users) {
         $this->buildErrorResponse(404, "Usuário não encontrado.");
       } else {
-        $currentPassword = $this->request->getPut("currentPassword");
-        $newPassword = $this->request->getPut("newPassword");
+        $currentPassword = $rawBody["currentPassword"];
+        $newPassword = $rawBody["newPassword"];
 
         if (!password_verify($currentPassword, $users->password)) {
           $this->buildErrorResponse(400, "Senha incorreta!");
@@ -336,7 +324,7 @@ class AuthController extends ControllerBase
         "id"        => $users->id,
         "email"     => $users->email,
         "username"  => $users->username,
-        "avatar"    => $users->avatar,
+        "thumbnail" => $users->thumbnail,
         "level"     => $users->level,
         "entity"    => $users->entity_id == 'pending' ? 'pending' : $users->getEntity(['columns' => 'id, name, thumbnail'])
       );

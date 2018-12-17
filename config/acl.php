@@ -14,19 +14,21 @@ $acl->addInherit('Admin', 'Entity');
 $arrResources = [
 
   'Guest' => [
-    'Auth'          => ['login', 'register', 'registerAndLogin', 'facebook', 'reAuth'],
-    'Users'         => ['changePassword'],
+    'Auth'          => ['login', 'register', 'facebook', 'changePassword'],
     'Location'      => ['states', 'cities', 'get'],
-    'Entities'      => ['get', 'index'],
-    'Balance'       => ['index', 'get'],
-    'News'          => ['index', 'get'],
-    'Reports'       => ['index', 'get'],
-    'Upload'          => ['image', 'document']
+    'Entities'      => ['get', 'index', 'search'],
+    'Categories'    => ['get', 'index', 'search'],
+    'Balance'       => ['index', 'get', 'search'],
+    'News'          => ['index', 'get', 'search'],
+    'Reports'       => ['index', 'get', 'search'],
+    'Upload'        => ['image', 'document']
   ],
   'Donor' => [
+    'Auth'    => ['me'],
     'Users'         => ['update'],
   ],
   'Entity' => [
+    'Auth'    => ['me'],
     'Entities'      => ['create', 'update', 'info', 'avatar'],
     'Balance'       => ['create', 'update', 'delete' ],
     'News'          => ['create', 'update', 'delete' ],
@@ -34,7 +36,9 @@ $arrResources = [
     'Users'         => ['get'],
   ],
   'Admin' => [
+    'Auth'    => ['me'],
     'Entities' => ['delete'],
+    'Categories' => ['create', 'update', 'delete'],
     'Users'    => ['index', 'search', 'create', 'delete'],
   ],
 ];

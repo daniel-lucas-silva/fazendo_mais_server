@@ -1,12 +1,11 @@
 <?php
 
-class ReportsController extends ControllerBase
+class CategoriesController extends ControllerBase
 {
   public function index() {
-
     $this->initializeGet();
 
-    $rows = 25;
+    $rows = 10;
     $order_by = 'id desc';
     $offset = 0;
     $limit = $offset + $rows;
@@ -22,7 +21,10 @@ class ReportsController extends ControllerBase
 
     if ($this->request->get('offset') != null) {
       $offset = $this->request->get('offset');
-      $limit = $rows;
+    }
+
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
     }
 
     if ($this->request->get('id') != null) {
@@ -45,7 +47,7 @@ class ReportsController extends ControllerBase
       $conditions = implode(' AND ', $conditions);
     }
 
-    $reports = EntityReports::find(
+    $categories = EntityCategories::find(
       array(
         $conditions,
         'bind' => $parameters,
@@ -57,21 +59,21 @@ class ReportsController extends ControllerBase
     );
 
     // Gets total
-    $total = EntityReports::count(
+    $total = EntityCategories::count(
       array(
         $conditions,
         'bind' => $parameters,
       )
     );
 
-    if (!$reports) {
+    if (!$categories) {
       $this->buildErrorResponse(404, 'Não encontrado!');
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
       $data = $this->array_push_assoc($data, 'size', $rows);
       $data = $this->array_push_assoc($data, 'total', $total);
-      $data = $this->array_push_assoc($data, 'rows', $reports->toArray());
+      $data = $this->array_push_assoc($data, 'rows', $categories->toArray());
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
   }
@@ -79,7 +81,7 @@ class ReportsController extends ControllerBase
   public function search($text) {
     $this->initializeGet();
 
-    $rows = 22;
+    $rows = 10;
     $order_by = "created_at desc";
     $offset = 0;
     $limit = $offset + $rows;
@@ -99,7 +101,10 @@ class ReportsController extends ControllerBase
 
     if ($this->request->get('offset') != null) {
       $offset = $this->request->get('offset');
-      $limit = $rows;
+    }
+
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
     }
 
     if ($this->request->get('filter') != null) {
@@ -117,160 +122,162 @@ class ReportsController extends ControllerBase
               id, 
               slug, 
               title,
-              content,
+              description,
+              thumbnail,
               created_at,
-              MATCH (title, content) AGAINST ('*{$text}*') AS relevance,
-            FROM entity_reports 
-            WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
-            ORDER BY relevance DESC, {$order_by} 
+              MATCH (title, description) AGAINST ('*{$text}*') AS title_relevance
+            FROM entity_categories 
+            WHERE MATCH (title, description) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
+            ORDER BY title_relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
-    $query = $this->db->query($sql);
-    $query->setFetchMode(Phalcon\Db::FETCH_ASSOC);
-    $reports = $query->fetchAll($query);
-    $total = $query->numRows($query);
+    $sql_total = "SELECT 
+              id, 
+              slug, 
+              title,
+              description,
+              thumbnail,
+              created_at,
+              MATCH (title, description) AGAINST ('*{$text}*') AS title_relevance
+            FROM entity_categories 
+            WHERE MATCH (title, description) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}";
 
-    if (!$reports) {
+    $query = $this->db->query($sql);
+    $query_total = $this->db->query($sql_total);
+
+    $query->setFetchMode(Phalcon\Db::FETCH_ASSOC);
+    $categories = $query->fetchAll($query);
+    $total = $query_total->numRows($query_total);
+
+    if (!$categories) {
       $this->buildErrorResponse(404, 'Não encontrado!');
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
       $data = $this->array_push_assoc($data, 'size', $rows);
       $data = $this->array_push_assoc($data, 'total', $total);
-      $data = $this->array_push_assoc($data, 'rows', $reports);
+      $data = $this->array_push_assoc($data, 'rows', $categories);
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
   }
 
   public function get($id) {
-
     $this->initializeGet();
 
-    $conditions = 'id = :id:';
-    $parameters = array(
-      'id' => $id,
+    $category = EntityCategories::findFirst(
+      [
+        "id = :id:",
+        "bind" => [
+          "id" => $id
+        ]
+      ]
     );
-    $reports = EntityReports::findFirst(
-      array(
-        $conditions,
-        'bind' => $parameters
-      )
-    );
-    if (!$reports) {
+
+    if (!$category) {
       $this->buildErrorResponse(404, 'Não encontrado!');
     } else {
-      $data = $reports->toArray();
+      $data = $category->toArray();
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
   }
 
   public function create() {
-
     $this->initializePost();
     $this->db->begin();
 
-    $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
+    $rawBody = $this->request->getJsonRawBody(true);
 
-    if(!($token['user_entity'] || $token['user_level'] == 'Admin')) {
-      $this->buildErrorResponse(403, "Proibido!");
+    $newCategory = new EntityCategories();
+
+    $columns = ['title', 'description'];
+
+    foreach($columns as $column) {
+      if(!empty($rawBody[$column])) {
+        $newCategory->$column = trim($rawBody[$column]);
+      }
+    }
+
+    $newCategory->slug = $this->genSlug($rawBody['title']);
+
+    if (!$newCategory->save()) {
+      $this->db->rollback();
+      $errors = [];
+      foreach ($newCategory->getMessages() as $message) {
+        $errors[$message->getField()] = $message->getMessage();
+      }
+      $this->buildErrorResponse(400, "Não pôde ser criado!", $errors);
     } else {
-      $newReports = new EntityReports();
-
-      $newReports->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
-
-      $columns = ['title', 'content'];
-
-      foreach($columns as $column) {
-        if(!empty($this->request->getPost($column))) {
-          $newReports->$column = trim($this->request->getPost($column));
-        }
-      }
-
-      if (!$newReports->save()) {
-        $this->db->rollback();
-        $errors = array();
-        foreach ($newReports->getMessages() as $message) {
-          $errors[$message->getField()] = $message->getMessage();
-        }
-        $this->buildErrorResponse(400, "Não pôde ser criado!", $errors);
-      } else {
-        $this->db->commit();
-        $this->registerLog();
-        $data = $newReports->toArray();
-        $this->buildSuccessResponse(201, 'Criado com sucesso!', $data);
-      }
+      $this->db->commit();
+      $this->registerLog();
+      $data = $newCategory->toArray();
+      $this->buildSuccessResponse(201, 'Criado com sucesso!', $data);
     }
   }
 
   public function update($id) {
-
     $this->initializePatch();
     $this->db->begin();
 
-    $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
+    $rawBody = $this->request->getJsonRawBody(true);
 
-    $conditions = "id = :id:";
-    $parameters = array(
-      "id" => $id,
+    $category = EntityCategories::findFirst(
+      [
+        "id = :id:",
+        "bind" => [
+          "id" => $id
+        ],
+      ]
     );
-    $reports = EntityReports::findFirst(
-      array(
-        $conditions,
-        "bind" => $parameters,
-      )
-    );
-    if (!$reports) {
+    if (!$category) {
       $this->buildErrorResponse(404, "Não encontrado!");
     } else {
 
-      if(!($token['user_entity'] == $reports->entity_id || $token['user_level'] == 'Admin')) {
-        $this->buildErrorResponse(403, "Proibido!");
+      $columns = ['title', 'description'];
+
+      foreach($columns as $column) {
+        if(!empty($rawBody[$column])) {
+          $category->$column = trim($rawBody[$column]);
+        }
+      }
+
+      $category->slug = $this->genSlug($rawBody['title']);
+
+      if (!$category->save()) {
+        $this->db->rollback();
+        $errors = [];
+        foreach ($category->getMessages() as $message) {
+          $errors[$message->getField()] = $message->getMessage();
+        }
+        $this->buildErrorResponse(400, "Não pôde ser atualizado!", $errors);
       } else {
-
-        $columns = ['title', 'content'];
-
-        foreach($columns as $column) {
-          if(!empty($this->request->getPut($column))) {
-            $reports->$column = trim($this->request->getPut($column));
-          }
-        }
-
-        if (!$reports->save()) {
-          $this->db->rollback();
-          $errors = array();
-          foreach ($reports->getMessages() as $message) {
-            $errors[$message->getField()] = $message->getMessage();
-          }
-          $this->buildErrorResponse(400, "Não pôde ser atualizado!", $errors);
-        } else {
-          $this->db->commit();
-          $this->registerLog();
-          $data = $reports->toArray();
-          $this->buildSuccessResponse(201, 'Atualizado com sucesso!', $data);
-        }
+        $this->db->commit();
+        $this->registerLog();
+        $data = $category->toArray();
+        $this->buildSuccessResponse(201, 'Atualizado com sucesso!', $data);
       }
     }
   }
 
   public function delete($id) {
-
     $this->initializeDelete();
     $this->db->begin();
 
-    $conditions = 'id = :id:';
-    $parameters = array(
-      'id' => $id,
+    $category = EntityCategories::findFirst(
+      [
+        'id = :id:',
+        'bind' => [
+          'id' => $id
+        ]
+      ]
     );
-    $reports = EntityReports::findFirst(
-      array( $conditions, 'bind' => $parameters )
-    );
-    if (!$reports) {
+
+    if (!$category) {
       $this->buildErrorResponse(404, 'Não encontrado!');
     } else {
-      if (!$reports->delete()) {
+      if (!$category->delete()) {
         $this->db->rollback();
-        $errors = array();
-        foreach ($reports->getMessages() as $message) {
+        $errors = [];
+        foreach ($category->getMessages() as $message) {
           $errors[$message->getField()] = $message->getMessage();
         }
         $this->buildErrorResponse(400, 'Não pôde ser deletado!', $errors);

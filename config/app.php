@@ -16,9 +16,9 @@ $auth->setHandler('AuthController', true);
 $auth->setPrefix('/auth');
 $auth->post('/login', 'login');
 $auth->post('/register', 'register');
-$auth->post('/register-login', 'registerAndLogin');
 $auth->post('/facebook', 'facebook');
-$auth->get('/re-auth', 'reAuth');
+$auth->patch('/change-password', 'changePassword');
+$auth->get('/me', 'me');
 $app->mount($auth);
 
 /**
@@ -42,9 +42,9 @@ $entities->setPrefix('/entities');
 $entities->get('/', 'index');
 $entities->post('/', 'create');
 $entities->get('/{id}', 'get');
-$entities->get('/info', 'info');
 $entities->patch('/{id}', 'update');
-$entities->post('/avatar/{id}', 'avatar');
+$entities->delete('/{id}', 'delete');
+$entities->get('/search/{text}', 'search');
 $app->mount($entities);
 
 /**
@@ -58,7 +58,22 @@ $news->post('/', 'create');
 $news->get('/{id}', 'get');
 $news->patch('/{id}', 'update');
 $news->delete('/{id}', 'delete');
+$news->get('/search/{text}', 'search');
 $app->mount($news);
+
+/**
+ * Categories routes
+ */
+$categories = new MicroCollection();
+$categories->setHandler('CategoriesController', true);
+$categories->setPrefix('/categories');
+$categories->get('/', 'index');
+$categories->post('/', 'create');
+$categories->get('/{id}', 'get');
+$categories->patch('/{id}', 'update');
+$categories->delete('/{id}', 'delete');
+$categories->get('/search/{text}', 'search');
+$app->mount($categories);
 
 /**
  * Balance routes
@@ -119,8 +134,17 @@ $app->notFound(function () use ($app) {
 /**
  * Error handler
  */
-$app->error(
-    function ($exception) {
-        echo "An error has occurred";
-    }
-);
+$app->error(function ($exception) use ($app) {
+  if(APPLICATION_ENV != 'development') {
+    $app->response->setStatusCode(500, "Internal Server Error")->sendHeaders();
+    $app->response->setContentType('application/json', 'UTF-8');
+    $app->response->setJsonContent(array(
+      "status" => "error",
+      "code" => "500",
+      "messages" => "Internal Server Error"
+    ));
+    $app->response->send();
+    exit;
+  }
+  return $exception;
+});

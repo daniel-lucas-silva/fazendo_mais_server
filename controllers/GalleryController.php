@@ -68,8 +68,8 @@ class GalleryController extends ControllerBase
     } else {
       $data = [];
       $data = $this->array_push_assoc($data, 'page', ($offset / $rows) + 1 );
-      $data = $this->array_push_assoc($data, 'rows_per_page', $rows);
-      $data = $this->array_push_assoc($data, 'total_rows', $total);
+      $data = $this->array_push_assoc($data, 'size', $rows);
+      $data = $this->array_push_assoc($data, 'total', $total);
       $data = $this->array_push_assoc($data, 'rows', $galleries->toArray());
       $this->buildSuccessResponse(200, 'Requisiçao completada com sucesso!', $data);
     }
@@ -102,12 +102,12 @@ class GalleryController extends ControllerBase
 
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
-    if(!($token['user_entity'] || $token['level'] == 'Admin')) {
+    if(!($token['user_entity'] || $token['user_level'] == 'Admin')) {
       $this->buildErrorResponse(403, "Proibido!");
     } else {
       $newGallery = new EntityGallery();
 
-      $newGallery->entity_id = $token['level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
+      $newGallery->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
 
       $columns = ['title', 'content'];
 
@@ -153,7 +153,7 @@ class GalleryController extends ControllerBase
       $this->buildErrorResponse(404, "Não encontrado!");
     } else {
 
-      if(!($token['user_entity'] == $gallery->entity_id || $token['level'] == 'Admin')) {
+      if(!($token['user_entity'] == $gallery->entity_id || $token['user_level'] == 'Admin')) {
         $this->buildErrorResponse(403, "Proibido!");
       } else {
 

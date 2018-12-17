@@ -18,9 +18,6 @@ CREATE TABLE users (
   KEY level (level)
 );
 
-INSERT INTO users (id, email, password, level, authorized, block_expires, login_attempts)
-VALUES
-	('ci27flk5w0002adx5dhyvzye2','admin@admin.com','$2y$10$QS.T0VwA5/a78y2s6m2Yiulu2bhGPzH/W1ay7QslX830PO4RTCVj.','Admin',1,NULL,0);
 
 DROP TABLE IF EXISTS users_access;
 CREATE TABLE users_access (
@@ -41,24 +38,26 @@ CREATE TABLE entity_categories (
   description TEXT,
   created_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY (slug),
+  FULLTEXT categories_search(title, description[500]),
+  KEY (slug)
 );
 
 DROP TABLE IF EXISTS entities;
 CREATE TABLE entities (
   id            CHAR(16) NOT NULL,
-  keywords      TEXT NULL,
   slug          VARCHAR(160) NOT NULL,
   name          VARCHAR(160) NOT NULL,
   about         TEXT NULL,
   thumbnail     TEXT DEFAULT NULL,
   info          JSON NULL,
   city_id       INT(10) NULL,
-  category_id   INT(10) NULL,
+  category_id   INT(10) UNSIGNED,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  FOREIGN KEY (category_id) REFERENCES entity_categories(id) ON DELETE CASCADE
-);
+  FOREIGN KEY (category_id) REFERENCES entity_categories(id) ON DELETE CASCADE,
+  KEY (slug),
+  FULLTEXT entities_search(name, about[500])
+)  ENGINE=InnoDB;
 
 DROP TABLE IF EXISTS entity_person;
 CREATE TABLE entity_person (
@@ -79,7 +78,9 @@ CREATE TABLE entity_news (
   content       LONGTEXT NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
+  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+  KEY (slug),
+  FULLTEXT news_search(title, content)
 );
 
 DROP TABLE IF EXISTS entity_gallery;
@@ -101,7 +102,8 @@ CREATE TABLE entity_balance (
   content       LONGTEXT NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
+  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+  FULLTEXT balance_search(title, content)
 );
 
 DROP TABLE IF EXISTS entity_reports;
@@ -112,7 +114,8 @@ CREATE TABLE entity_reports (
   content       LONGTEXT NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
+  FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+  FULLTEXT reports_search(title, content)
 );
 
 DROP TABLE IF EXISTS entity_messages;
@@ -123,6 +126,7 @@ CREATE TABLE entity_messages (
   title         VARCHAR(255) NOT NULL,
   content       LONGTEXT NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FULLTEXT (content),
   PRIMARY KEY (id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
@@ -136,6 +140,7 @@ CREATE TABLE donations (
   amount      INT(11) NOT NULL,
   created_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY(entity_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
 );

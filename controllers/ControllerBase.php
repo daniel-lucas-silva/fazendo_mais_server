@@ -111,11 +111,15 @@ class ControllerBase extends Controller
   }
 
   public function encodeToken($data) {
-    return $this->jwt->encode($data, $this->tokenConfig['secret']);
+    $token_encoded = $this->jwt->encode($data, $this->tokenConfig['secret']);
+//    $token_encoded = $this->mycrypt->encryptBase64($token_encoded);
+    return $token_encoded;
   }
 
   public function decodeToken($token) {
-    return $this->jwt->decode($token, $this->tokenConfig['secret'], array('HS256'));
+//    $token = $this->mycrypt->decryptBase64($token);
+    $token = $this->jwt->decode($token, $this->tokenConfig['secret'], array('HS256'));
+    return $token;
   }
 
   public function getToken() {
