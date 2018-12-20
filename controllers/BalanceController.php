@@ -2,13 +2,17 @@
 
 class BalanceController extends ControllerBase
 {
-  public function index() {
+  public function index($entity_id) {
+
     $this->initializeGet();
 
-    $rows = 22;
-    $order_by = 'id desc';
+    $rows = 10;
+    $order_by = 'created_at desc';
     $offset = 0;
     $limit = $offset + $rows;
+
+    $conditions = 'entity_id = :entity_id:';
+    $parameters = ['entity_id' => $entity_id];
 
     if ($this->request->get('sort') != null && $this->request->get('order') != null) {
       $order_by = $this->request->get('sort') . " " . $this->request->get('order');
@@ -19,20 +23,9 @@ class BalanceController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
-    }
-
-    if ($this->request->get('id') != null) {
-
-      $conditions = 'entity_id = :entity_id:';
-      $parameters = array(
-        'entity_id' => $this->request->get('id'),
-      );
-    } else {
-      $conditions = [];
-      $parameters = [];
     }
 
     if ($this->request->get('filter') != null) {
@@ -75,10 +68,10 @@ class BalanceController extends ControllerBase
     }
   }
 
-  public function search($text) {
+  public function search($entity_id, $text) {
     $this->initializeGet();
 
-    $rows = 22;
+    $rows = 10;
     $order_by = "created_at desc";
     $offset = 0;
     $limit = $offset + $rows;
@@ -96,8 +89,8 @@ class BalanceController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
     }
 
@@ -114,21 +107,30 @@ class BalanceController extends ControllerBase
 
     $sql = "SELECT 
               id, 
-              slug, 
               title,
               content,
               created_at,
-              MATCH (title, content) AGAINST ('*{$text}*') AS relevance,
-              MATCH (title) AGAINST ('*{$text}*') AS title_relevance
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
             FROM entity_balance 
-            WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
-            ORDER BY title_relevance DESC, relevance DESC, {$order_by} 
+            WHERE entity_id = '{$entity_id}' AND MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
+            ORDER BY relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
+    $sql_total = "SELECT 
+              id, 
+              title,
+              content,
+              created_at,
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
+            FROM entity_balance 
+            WHERE entity_id = '{$entity_id}' AND MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}";
+
     $query = $this->db->query($sql);
+    $query_total = $this->db->query($sql_total);
+
     $query->setFetchMode(Phalcon\Db::FETCH_ASSOC);
     $balance = $query->fetchAll($query);
-    $total = $query->numRows($query);
+    $total = $query_total->numRows($query_total);
 
     if (!$balance) {
       $this->buildErrorResponse(404, 'Não encontrado!');
@@ -143,17 +145,14 @@ class BalanceController extends ControllerBase
   }
 
   public function get($id) {
+
     $this->initializeGet();
 
-    $conditions = 'id = :id:';
-    $parameters = array(
-      'id' => $id,
-    );
     $balance = EntityBalance::findFirst(
-      array(
-        $conditions,
-        'bind' => $parameters
-      )
+      [
+        'id = :id:',
+        'bind' => ['id' => $id]
+      ]
     );
     if (!$balance) {
       $this->buildErrorResponse(404, 'Não encontrado!');
@@ -164,8 +163,11 @@ class BalanceController extends ControllerBase
   }
 
   public function create() {
+
     $this->initializePost();
     $this->db->begin();
+
+    $rawBody = $this->request->getJsonRawBody(true);
 
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
@@ -173,14 +175,13 @@ class BalanceController extends ControllerBase
       $this->buildErrorResponse(403, "Proibido!");
     } else {
       $newBalance = new EntityBalance();
-
-      $newBalance->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
+      $newBalance->entity_id = $token['user_level'] == 'Admin' ? trim($rawBody["entity_id"]) : $token['user_entity'];
 
       $columns = ['title', 'content'];
 
       foreach($columns as $column) {
-        if(!empty($this->request->getPost($column))) {
-          $newBalance->$column = trim($this->request->getPost($column));
+        if(!empty($rawBody[$column])) {
+          $newBalance->$column = trim($rawBody[$column]);
         }
       }
 
@@ -201,20 +202,19 @@ class BalanceController extends ControllerBase
   }
 
   public function update($id) {
+
     $this->initializePatch();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
-    $conditions = "id = :id:";
-    $parameters = array(
-      "id" => $id,
-    );
     $balance = EntityBalance::findFirst(
-      array(
-        $conditions,
-        "bind" => $parameters,
-      )
+      [
+        "id = :id:",
+        "bind" => ["id" => $id],
+      ]
     );
     if (!$balance) {
       $this->buildErrorResponse(404, "Não encontrado!");
@@ -227,8 +227,8 @@ class BalanceController extends ControllerBase
         $columns = ['title', 'content'];
 
         foreach($columns as $column) {
-          if(!empty($this->request->getPut($column))) {
-            $balance->$column = trim($this->request->getPut($column));
+          if(!empty($rawBody[$column])) {
+            $balance->$column = trim($rawBody[$column]);
           }
         }
 
@@ -250,6 +250,7 @@ class BalanceController extends ControllerBase
   }
 
   public function delete($id) {
+
     $this->initializeDelete();
     $this->db->begin();
 

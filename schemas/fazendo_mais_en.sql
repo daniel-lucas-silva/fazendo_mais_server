@@ -103,7 +103,7 @@ CREATE TABLE entity_balance (
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
-  FULLTEXT balance_search(title, content)
+  FULLTEXT balance_search(title, content[500])
 );
 
 DROP TABLE IF EXISTS entity_reports;
@@ -115,7 +115,7 @@ CREATE TABLE entity_reports (
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
-  FULLTEXT reports_search(title, content)
+  FULLTEXT reports_search(title, content[500])
 );
 
 DROP TABLE IF EXISTS entity_messages;
@@ -126,7 +126,7 @@ CREATE TABLE entity_messages (
   title         VARCHAR(255) NOT NULL,
   content       LONGTEXT NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FULLTEXT (content),
+  FULLTEXT (content[500]),
   PRIMARY KEY (id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE

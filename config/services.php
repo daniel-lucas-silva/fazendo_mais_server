@@ -29,7 +29,7 @@ $di->setShared('view', function () use ($config) {
 
 $di->setShared('url', function () use ($config) {
     $url = new UrlResolver();
-    $url->setBaseUri($config->application->baseUri);
+    $url->setBaseUri($config->baseUri);
     return $url;
 });
 

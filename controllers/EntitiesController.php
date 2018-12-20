@@ -19,8 +19,8 @@ class EntitiesController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
     }
 

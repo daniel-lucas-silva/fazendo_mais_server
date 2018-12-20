@@ -12,12 +12,11 @@ $acl->addRole(new Phalcon\Acl\Role('Admin'));
 $acl->addInherit('Admin', 'Entity');
 
 $arrResources = [
-
   'Guest' => [
     'Auth'          => ['login', 'register', 'facebook', 'changePassword'],
     'Location'      => ['states', 'cities', 'get'],
-    'Entities'      => ['get', 'index', 'search'],
-    'Categories'    => ['get', 'index', 'search'],
+    'Entities'      => ['index', 'get', 'search'],
+    'Categories'    => ['index', 'get', 'search'],
     'Balance'       => ['index', 'get', 'search'],
     'News'          => ['index', 'get', 'search'],
     'Reports'       => ['index', 'get', 'search'],

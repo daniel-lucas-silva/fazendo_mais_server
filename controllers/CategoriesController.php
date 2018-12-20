@@ -125,10 +125,10 @@ class CategoriesController extends ControllerBase
               description,
               thumbnail,
               created_at,
-              MATCH (title, description) AGAINST ('*{$text}*') AS title_relevance
+              MATCH (title, description) AGAINST ('*{$text}*') AS relevance
             FROM entity_categories 
             WHERE MATCH (title, description) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
-            ORDER BY title_relevance DESC, {$order_by} 
+            ORDER BY relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
     $sql_total = "SELECT 
@@ -138,7 +138,7 @@ class CategoriesController extends ControllerBase
               description,
               thumbnail,
               created_at,
-              MATCH (title, description) AGAINST ('*{$text}*') AS title_relevance
+              MATCH (title, description) AGAINST ('*{$text}*') AS relevance
             FROM entity_categories 
             WHERE MATCH (title, description) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}";
 

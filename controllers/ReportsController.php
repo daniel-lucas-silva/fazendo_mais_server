@@ -2,14 +2,17 @@
 
 class ReportsController extends ControllerBase
 {
-  public function index() {
+  public function index($entity_id) {
 
     $this->initializeGet();
 
-    $rows = 25;
-    $order_by = 'id desc';
+    $rows = 10;
+    $order_by = 'created_at desc';
     $offset = 0;
     $limit = $offset + $rows;
+
+    $conditions = 'entity_id = :entity_id:';
+    $parameters = ['entity_id' => $entity_id];
 
     if ($this->request->get('sort') != null && $this->request->get('order') != null) {
       $order_by = $this->request->get('sort') . " " . $this->request->get('order');
@@ -20,20 +23,9 @@ class ReportsController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
-    }
-
-    if ($this->request->get('id') != null) {
-
-      $conditions = 'entity_id = :entity_id:';
-      $parameters = array(
-        'entity_id' => $this->request->get('id'),
-      );
-    } else {
-      $conditions = [];
-      $parameters = [];
     }
 
     if ($this->request->get('filter') != null) {
@@ -76,10 +68,10 @@ class ReportsController extends ControllerBase
     }
   }
 
-  public function search($text) {
+  public function search($entity_id, $text) {
     $this->initializeGet();
 
-    $rows = 22;
+    $rows = 10;
     $order_by = "created_at desc";
     $offset = 0;
     $limit = $offset + $rows;
@@ -97,8 +89,8 @@ class ReportsController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
     }
 
@@ -115,20 +107,30 @@ class ReportsController extends ControllerBase
 
     $sql = "SELECT 
               id, 
-              slug, 
               title,
               content,
               created_at,
-              MATCH (title, content) AGAINST ('*{$text}*') AS relevance,
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
             FROM entity_reports 
-            WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
+            WHERE entity_id = '{$entity_id}' AND MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
             ORDER BY relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
+    $sql_total = "SELECT 
+              id, 
+              title,
+              content,
+              created_at,
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
+            FROM entity_reports 
+            WHERE entity_id = '{$entity_id}' AND MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}";
+
     $query = $this->db->query($sql);
+    $query_total = $this->db->query($sql_total);
+
     $query->setFetchMode(Phalcon\Db::FETCH_ASSOC);
     $reports = $query->fetchAll($query);
-    $total = $query->numRows($query);
+    $total = $query_total->numRows($query_total);
 
     if (!$reports) {
       $this->buildErrorResponse(404, 'Não encontrado!');
@@ -146,15 +148,11 @@ class ReportsController extends ControllerBase
 
     $this->initializeGet();
 
-    $conditions = 'id = :id:';
-    $parameters = array(
-      'id' => $id,
-    );
     $reports = EntityReports::findFirst(
-      array(
-        $conditions,
-        'bind' => $parameters
-      )
+      [
+        'id = :id:',
+        'bind' => ['id' => $id]
+      ]
     );
     if (!$reports) {
       $this->buildErrorResponse(404, 'Não encontrado!');
@@ -169,20 +167,21 @@ class ReportsController extends ControllerBase
     $this->initializePost();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
     if(!($token['user_entity'] || $token['user_level'] == 'Admin')) {
       $this->buildErrorResponse(403, "Proibido!");
     } else {
       $newReports = new EntityReports();
-
-      $newReports->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
+      $newReports->entity_id = $token['user_level'] == 'Admin' ? trim($rawBody["entity_id"]) : $token['user_entity'];
 
       $columns = ['title', 'content'];
 
       foreach($columns as $column) {
-        if(!empty($this->request->getPost($column))) {
-          $newReports->$column = trim($this->request->getPost($column));
+        if(!empty($rawBody[$column])) {
+          $newReports->$column = trim($rawBody[$column]);
         }
       }
 
@@ -207,17 +206,15 @@ class ReportsController extends ControllerBase
     $this->initializePatch();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
-    $conditions = "id = :id:";
-    $parameters = array(
-      "id" => $id,
-    );
     $reports = EntityReports::findFirst(
-      array(
-        $conditions,
-        "bind" => $parameters,
-      )
+      [
+        "id = :id:",
+        "bind" => ["id" => $id],
+      ]
     );
     if (!$reports) {
       $this->buildErrorResponse(404, "Não encontrado!");
@@ -230,8 +227,8 @@ class ReportsController extends ControllerBase
         $columns = ['title', 'content'];
 
         foreach($columns as $column) {
-          if(!empty($this->request->getPut($column))) {
-            $reports->$column = trim($this->request->getPut($column));
+          if(!empty($rawBody[$column])) {
+            $reports->$column = trim($rawBody[$column]);
           }
         }
 

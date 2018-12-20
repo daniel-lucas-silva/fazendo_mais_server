@@ -2,13 +2,16 @@
 
 class NewsController extends ControllerBase
 {
-  public function index() {
+  public function index($entity_id) {
     $this->initializeGet();
 
-    $rows = 25;
+    $rows = 10;
     $order_by = 'created_at desc';
     $offset = 0;
     $limit = $offset + $rows;
+
+    $conditions = 'entity_id = :entity_id:';
+    $parameters = ['entity_id' => $entity_id];
 
     if ($this->request->get('sort') != null && $this->request->get('order') != null) {
       $order_by = $this->request->get('sort') . " " . $this->request->get('order');
@@ -19,20 +22,9 @@ class NewsController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
-    }
-
-    if ($this->request->get('id') != null) {
-
-      $conditions = 'entity_id = :entity_id:';
-      $parameters = array(
-        'entity_id' => $this->request->get('id'),
-      );
-    } else {
-      $conditions = [];
-      $parameters = [];
     }
 
     if ($this->request->get('filter') != null) {
@@ -74,10 +66,10 @@ class NewsController extends ControllerBase
     }
   }
 
-  public function search($text) {
+  public function search($entity_id, $text) {
     $this->initializeGet();
 
-    $rows = 22;
+    $rows = 10;
     $order_by = "created_at desc";
     $offset = 0;
     $limit = $offset + $rows;
@@ -95,8 +87,8 @@ class NewsController extends ControllerBase
       $limit = $rows;
     }
 
-    if ($this->request->get('offset') != null) {
-      $offset = $this->request->get('offset');
+    if ($this->request->get('page') != null) {
+      $offset = ($this->request->get('page') - 1) * $limit;
       $limit = $rows;
     }
 
@@ -119,14 +111,26 @@ class NewsController extends ControllerBase
               created_at,
               MATCH (title, content) AGAINST ('*{$text}*') AS relevance
             FROM entity_news 
-            WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
+            WHERE entity_id = '{$entity_id}' AND MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}
             ORDER BY relevance DESC, {$order_by} 
             LIMIT {$limit} OFFSET {$offset}";
 
+    $sql_total = "SELECT 
+              id, 
+              slug, 
+              title,
+              content,
+              created_at,
+              MATCH (title, content) AGAINST ('*{$text}*') AS relevance
+            FROM entity_news 
+            WHERE MATCH (title, content) AGAINST ('*{$text}*' IN BOOLEAN MODE) {$conditions}";
+
     $query = $this->db->query($sql);
+    $query_total = $this->db->query($sql_total);
+
     $query->setFetchMode(Phalcon\Db::FETCH_ASSOC);
     $news = $query->fetchAll($query);
-    $total = $query->numRows($query);
+    $total = $query_total->numRows($query_total);
 
     if (!$news) {
       $this->buildErrorResponse(404, 'Não encontrado!');
@@ -162,23 +166,31 @@ class NewsController extends ControllerBase
     $this->initializePost();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
     if(!($token['user_entity'] || $token['user_level'] == 'Admin')) {
       $this->buildErrorResponse(403, "Proibido!");
     } else {
       $newNews = new EntityNews();
-      $newNews->entity_id = $token['user_level'] == 'Admin' ? trim($this->request->getPost("entity_id")) : $token['user_entity'];
+      $newNews->entity_id = $token['user_level'] == 'Admin' ? trim($rawBody["entity_id"]) : $token['user_entity'];
 
       $columns = ['title', 'content'];
 
       foreach($columns as $column) {
-        if(!empty($this->request->getPost($column))) {
-          $newNews->$column = trim($this->request->getPost($column));
+        if(!empty($rawBody[$column])) {
+          $newNews->$column = trim($rawBody[$column]);
         }
       }
 
-      $newNews->slug = $this->genSlug(substr($token['user_entity'],2,3)." ".$this->request->getPost('title'));
+      $slug = $this->genSlug(substr(uniqid(),6,5)." ".$rawBody['title']);
+
+      if(!empty($rawBody['thumbnail'])) {
+        $newNews->thumbnail = $this->genImage($slug, trim($rawBody['thumbnail']));
+      }
+
+      $newNews->slug = $slug;
 
       if (!$newNews->save()) {
         $this->db->rollback();
@@ -200,6 +212,8 @@ class NewsController extends ControllerBase
     $this->initializePatch();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
     $news = EntityNews::findFirst(
@@ -217,15 +231,21 @@ class NewsController extends ControllerBase
         $this->buildErrorResponse(403, "Proibido!");
       } else {
 
-        $columns = ['title', 'content', 'thumbnail'];
+        $columns = ['title', 'content'];
 
         foreach($columns as $column) {
-          if(!empty($this->request->getPut($column))) {
-            $news->$column = trim($this->request->getPut($column));
+          if(!empty($rawBody[$column])) {
+            $news->$column = trim($rawBody[$column]);
           }
         }
 
-        $news->slug = $this->genSlug(substr($token['user_entity'],2,3)." ".$this->request->getPut('title'));
+        $slug = $this->genSlug(substr(uniqid(),6,5)." ".$rawBody['title']);
+
+        if(!empty($rawBody['thumbnail'])) {
+          $news->thumbnail = $this->genImage($slug, trim($rawBody['thumbnail']));
+        }
+
+        $news->slug = $slug;
 
         if (!$news->save()) {
           $this->db->rollback();

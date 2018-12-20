@@ -203,7 +203,7 @@ class ControllerBase extends Controller
     return $text;
   }
 
-  function genImage($base64, $width = 300, $height = 300, $quality = 50) {
+  function genImage($name, $base64, $width = 300, $height = 300, $quality = 50) {
 //    $image=base64_decode($base64);
     $image = file_get_contents($base64);
 
@@ -216,9 +216,13 @@ class ControllerBase extends Controller
     $im->setImageCompression(Imagick::COMPRESSION_JPEG);
     $im->setImageCompressionQuality($quality);
 
-    $output = $im->getimageblob();
+    $filename = $name.".jpg";
+    $path = APP_PATH . "/public/files/";
 
-    return $output;
+    if($im->writeImage($path.$filename)) {
+      return "{$this->url->get()}/files/{$filename}";
+    }
+    return false;
   }
 
   function storeFile($file, $path) { } // TODO: ...
