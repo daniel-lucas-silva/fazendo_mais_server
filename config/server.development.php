@@ -1,7 +1,7 @@
 <?php
 
 return [
-  'baseUri' => '//fazendo.mais',
+  'baseUri' => 'http://fazendo.mais',
   'database' => [
     'adapter' => 'Mysql', /* Possible Values: Mysql, Postgres, Sqlite */
     'host' => '127.0.0.1',

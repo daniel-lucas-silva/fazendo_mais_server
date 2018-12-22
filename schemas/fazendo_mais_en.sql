@@ -154,3 +154,26 @@ CREATE TABLE user_follow (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
 );
+
+
+
+-- SELECT s1.*
+-- FROM   (SELECT *,
+--                0 AS ordinal
+--         FROM   videos v
+--         WHERE  v.created_at > ( CURDATE() - INTERVAL 3 DAY )
+--         ORDER  BY v.views DESC,
+--                   v.ratings DESC,
+--                   v.comments DESC) s1
+-- UNION ALL
+-- SELECT s2.*
+-- FROM   (SELECT *,
+--                1 AS ordinal
+--         FROM   videos vv
+--         ORDER  BY vv.views DESC,
+--                   vv.ratings DESC,
+--                   vv.comments DESC) s2
+-- ORDER  BY ordinal,
+--           views DESC,
+--           ratings DESC,
+--           comments DESC

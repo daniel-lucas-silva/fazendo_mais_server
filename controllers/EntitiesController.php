@@ -76,8 +76,8 @@ class EntitiesController extends ControllerBase
         'about'       => 'Entities.about',
         'thumbnail'   => 'Entities.thumbnail',
         'info'        => 'Entities.info',
-        'category'    => 'JSON_OBJECT(\'title\', EntityCategories.title, \'slug\', EntityCategories.slug)',
-        'location'    => 'JSON_OBJECT(\'city\', Cities.name, \'state\', States.initials)',
+        'category'    => 'JSON_OBJECT(\'id\', EntityCategories.id, \'title\', EntityCategories.title, \'slug\', EntityCategories.slug)',
+        'location'    => 'JSON_OBJECT(\'id\', Cities.id, \'city\', Cities.name, \'state\', States.initials)',
         'created_at'  => 'Entities.created_at'
       ])
       ->leftJoin('EntityCategories', 'Entities.category_id = EntityCategories.id')
@@ -186,8 +186,8 @@ class EntitiesController extends ControllerBase
         entities.about AS about, 
         entities.thumbnail AS thumbnail, 
         entities.created_at AS created_at,
-        JSON_OBJECT('title', entity_categories.title, 'slug', entity_categories.slug) AS category,
-        JSON_OBJECT('city', cities.name, 'state', states.initials) AS location,
+        JSON_OBJECT('id', entity_categories.id, 'title', entity_categories.title, 'slug', entity_categories.slug) AS category,
+        JSON_OBJECT('id', cities.id, 'city', cities.name, 'state', states.initials) AS location,
         MATCH (entities.name, entities.about) AGAINST ('*{$text}*') AS relevance
       FROM entities 
       LEFT JOIN entity_categories ON entities.category_id = entity_categories.id
@@ -218,6 +218,8 @@ class EntitiesController extends ControllerBase
     $this->initializePost();
     $this->db->begin();
 
+    $rawBody = $this->request->getJsonRawBody(true);
+
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
     $user = Users::findFirst(
@@ -245,12 +247,18 @@ class EntitiesController extends ControllerBase
         $columns = ['name', 'about', 'info', 'city_id', 'category_id'];
 
         foreach($columns as $column) {
-          if(!empty($this->request->getPost($column))) {
-            $newEntity->$column = trim($this->request->getPost($column));
+          if(!empty($rawBody[$column])) {
+            $newEntity->$column = trim($rawBody[$column]);
           }
         }
 
-        $newEntity->slug = $this->genSlug(substr($token['user_id'],2,3)." ".$this->request->getPost('name'));
+        $slug = $this->genSlug(substr(uniqid(),6,5)." ".$rawBody['name']);
+
+        if(!empty($rawBody['thumbnail'])) {
+          $newEntity->thumbnail = $this->genImage($slug, trim($rawBody['thumbnail']));
+        }
+
+        $newEntity->slug = $slug;
 
         if (!$newEntity->save()) {
           $this->db->rollback();
@@ -291,8 +299,8 @@ class EntitiesController extends ControllerBase
         'about'       => 'Entities.about',
         'thumbnail'   => 'Entities.thumbnail',
         'info'        => 'Entities.info',
-        'category'    => 'JSON_OBJECT(\'title\', EntityCategories.title, \'slug\', EntityCategories.slug)',
-        'location'    => 'JSON_OBJECT(\'city\', Cities.name, \'state\', States.initials)',
+        'category'    => 'JSON_OBJECT(\'id\', EntityCategories.id, \'title\', EntityCategories.title, \'slug\', EntityCategories.slug)',
+        'location'    => 'JSON_OBJECT(\'id\', Cities.id, \'city\', Cities.name, \'state\', States.initials)',
         'created_at'  => 'Entities.created_at'
       ])
       ->leftJoin('EntityCategories', 'Entities.category_id = EntityCategories.id')
@@ -313,11 +321,10 @@ class EntitiesController extends ControllerBase
 
   public function update($id)
   {
-    // Verifies if is get request
     $this->initializePatch();
-
-    // Start a transaction
     $this->db->begin();
+
+    $rawBody = $this->request->getJsonRawBody(true);
 
     $token = $this->getToken() ? (array) $this->decodeToken($this->getToken()) : [];
 
@@ -338,15 +345,22 @@ class EntitiesController extends ControllerBase
         $this->buildErrorResponse(403, "Proibido!");
       } else {
 
-        $columns = ['name', 'about', 'thumbnail', 'info', 'city_id', 'category_id'];
+        $columns = ['name', 'about', 'info', 'city_id', 'category_id'];
 
         foreach($columns as $column) {
-          if(!empty($this->request->getPut($column))) {
-            $entity->$column = trim($this->request->getPut($column));
+          if(!empty($rawBody[$column])) {
+            $entity->$column = trim($rawBody[$column]);
           }
         }
 
-        $entity->slug = $this->genSlug(substr($token['user_entity'],2,5)." ".$this->request->getPut('name'));
+        if(!empty($rawBody['name'])) {
+          $slug = $this->genSlug(substr(uniqid(),6,5)." ".$rawBody['name']);
+          $entity->slug = $slug;
+        }
+
+        if(!empty($rawBody['thumbnail'])) {
+          $entity->thumbnail = $this->genImage($slug, trim($rawBody['thumbnail']));
+        }
 
         if (!$entity->save()) {
           $this->db->rollback();
