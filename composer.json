@@ -1,7 +1,15 @@
 {
+    "name": "daniel/fazendo_mais_server",
+    "description": "some description",
     "require": {
         "firebase/php-jwt": "^5.0",
-        "facebook/graph-sdk": "^5.6",
-        "phpmailer/phpmailer": "^6.0"
-    }
+        "ext-json": "*",
+        "phalcon/incubator": "^3.4"
+    },
+    "authors": [
+        {
+            "name": "daniel-lucas-silva",
+            "email": "dluc18@gmail.com"
+        }
+    ]
 }

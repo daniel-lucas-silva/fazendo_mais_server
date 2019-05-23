@@ -3,5 +3,4 @@ composer.lock
 /public/files
 /.scannerwork
 
-/.idea
 sonar-project.properties
