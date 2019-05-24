@@ -2,5 +2,5 @@ composer.lock
 /vendor
 /public/files
 /.scannerwork
-
 sonar-project.properties
+config.json

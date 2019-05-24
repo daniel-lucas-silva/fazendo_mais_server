@@ -27,11 +27,11 @@ $arrResources = [
     'Upload'        => ['image', 'document']
   ],
   'Donor' => [
-    'Auth'    => ['me'],
+    'Auth'          => ['me'],
     'Users'         => ['update'],
   ],
   'Entity' => [
-    'Auth'    => ['me'],
+    'Auth'          => ['me'],
     'Entities'      => ['create', 'update', 'info', 'avatar'],
     'Balance'       => ['create', 'update', 'delete' ],
     'News'          => ['create', 'update', 'delete' ],
@@ -39,10 +39,10 @@ $arrResources = [
     'Users'         => ['get'],
   ],
   'Admin' => [
-    'Auth'    => ['me'],
-    'Entities' => ['delete'],
-    'Categories' => ['create', 'update', 'delete'],
-    'Users'    => ['index', 'search', 'create', 'delete'],
+    'Auth'          => ['me'],
+    'Entities'      => ['delete'],
+    'Categories'    => ['create', 'update', 'delete'],
+    'Users'         => ['index', 'search', 'create', 'delete'],
   ],
 ];
 
