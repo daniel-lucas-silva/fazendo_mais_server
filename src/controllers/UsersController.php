@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Common\Controller;
 
 class UsersController extends Controller {
+
     private function checkForbiddenUsername($username)
     {
         $username = trim($username);
@@ -12,6 +13,7 @@ class UsersController extends Controller {
             $this->buildErrorResponse(409, 'common.COULD_NOT_BE_CREATED');
         }
     }
+
     private function checkIfUsernameAlreadyExists($username)
     {
         // checks if user already exists
@@ -29,6 +31,7 @@ class UsersController extends Controller {
             $this->buildErrorResponse(409, 'profile.ANOTHER_USER_ALREADY_REGISTERED_WITH_THIS_USERNAME');
         }
     }
+
     private function createUser($email, $new_password, $username, $firstname, $lastname, $level, $phone, $mobile, $address, $city, $country, $birthday, $authorised = 0)
     {
         $user = new Users();
@@ -48,6 +51,7 @@ class UsersController extends Controller {
         $this->tryToSaveData($user, 'common.COULD_NOT_BE_CREATED');
         return $user;
     }
+
     private function findUserLastAccess($user)
     {
         $conditions = 'username = :username:';
@@ -79,6 +83,7 @@ class UsersController extends Controller {
             return $user;
         }
     }
+
     private function updateUser($user, $firstname, $lastname, $birthday, $email, $level, $phone, $mobile, $address, $city, $country, $authorised = 0)
     {
         $user->firstname = trim($firstname);
@@ -95,6 +100,7 @@ class UsersController extends Controller {
         $this->tryToSaveData($user, 'common.COULD_NOT_BE_UPDATED');
         return $user;
     }
+
     private function setNewPassword($new_password, $user)
     {
         $user->password = password_hash($this->request->getPut('new_password'), PASSWORD_BCRYPT);
@@ -105,6 +111,7 @@ class UsersController extends Controller {
     {
         return (!isset($headers['Authorization']) || empty($headers['Authorization'])) ? $this->buildErrorResponse(403, 'common.HEADER_AUTHORIZATION_NOT_SENT') : true;
     }
+
     private function findUser($credentials)
     {
         $username = $credentials['username'];
@@ -120,26 +127,31 @@ class UsersController extends Controller {
         );
         return (!$user) ? $this->buildErrorResponse(404, 'login.USER_IS_NOT_REGISTERED') : $user;
     }
+
     private function getUserPassword($credentials)
     {
         return $credentials['password'];
     }
+
     private function checkIfUserIsNotBlocked($user)
     {
         $block_expires = strtotime($user->block_expires);
         $now = strtotime($this->getNowDateTime());
         return ($block_expires > $now) ? $this->buildErrorResponse(403, 'login.USER_BLOCKED') : true;
     }
+
     private function checkIfUserIsAuthorized($user)
     {
         return ($user->authorised == 0) ? $this->buildErrorResponse(403, 'login.USER_UNAUTHORIZED') : true;
     }
+
     private function addOneLoginAttempt($user)
     {
         $user->login_attempts = $user->login_attempts + 1;
         $this->tryToSaveData($user);
         return $user->login_attempts;
     }
+
     private function addXMinutesBlockToUser($minutes, $user)
     {
         $user->block_expires = $this->getNowDateTimePlusMinutes($minutes);
@@ -147,6 +159,7 @@ class UsersController extends Controller {
             $this->buildErrorResponse(400, 'login.TOO_MANY_FAILED_LOGIN_ATTEMPTS');
         }
     }
+
     private function checkPassword($password, $user)
     {
         if (!password_verify($password, $user->password)) {
@@ -154,6 +167,7 @@ class UsersController extends Controller {
             ($login_attempts <= 4) ? $this->buildErrorResponse(400, 'login.WRONG_USER_PASSWORD') : $this->addXMinutesBlockToUser(120, $user);
         }
     }
+
     private function checkIfPasswordNeedsRehash($password, $user)
     {
         $options = [
@@ -165,6 +179,7 @@ class UsersController extends Controller {
             $this->tryToSaveData($user);
         }
     }
+
     private function buildUserData($user)
     {
         $user_data = array(
@@ -176,6 +191,7 @@ class UsersController extends Controller {
         );
         return $user_data;
     }
+
     private function buildTokenData($user)
     {
         // issue at time and expires (token)
@@ -194,11 +210,13 @@ class UsersController extends Controller {
         );
         return $token_data;
     }
+
     private function resetLoginAttempts($user)
     {
         $user->login_attempts = 0;
         $this->tryToSaveData($user);
     }
+
     private function registerNewUserAccess($user)
     {
         $headers = $this->request->getHeaders();
