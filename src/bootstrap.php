@@ -22,7 +22,6 @@ if (APPLICATION_ENV === 'development') {
 
 try {
 
-
     /**
      * Dependency Injector
      */
