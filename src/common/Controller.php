@@ -2,13 +2,29 @@
 
 namespace App\Common;
 
+use App\Models\Logs;
+use App\ResponseException;
+use DateInterval;
+use DateTime;
+use DateTimeZone;
+use Exception;
+use Firebase\JWT\JWT;
+use Phalcon\Crypt\Mismatch;
+use Phalcon\Db\Adapter\Pdo\Mysql;
+use Phalcon\Mvc\Model;
+
+/**
+ * Class Controller
+ * @package App\Common
+ * @property Mysql db
+ * @property JWT jwt
+ * @property array tokenConfig
+ */
 class Controller extends \Phalcon\Mvc\Controller {
-    /**
-     * These functions are available for multiple controllers
-     */
 
     /**
-     * Register LOG in another DB
+     * @throws ResponseException
+     * @throws Exception
      */
     public function registerLog()
     {
@@ -17,28 +33,32 @@ class Controller extends \Phalcon\Mvc\Controller {
         // Gets URL route from request
         $url = $this->request->get();
         // Initiates log db transaction
-        $this->db_log->begin();
+        $this->db->begin();
         $newLog = new Logs();
         $newLog->username = $token_decoded->username_username; // gets username
         $newLog->route = $url['_url']; // gets route
         $newLog->date = $this->getNowDateTime();
         if (!$newLog->save()) {
             // rollback transaction
-            $this->db_log->rollback();
+            $this->db->rollback();
             // Send errors
             $errors = array();
             foreach ($newLog->getMessages() as $message) {
                 $errors[] = $message->getMessage();
             }
-            $this->buildErrorResponse(400, 'common.COULD_NOT_BE_CREATED', $errors);
+
+            throw new ResponseException(400, 'common.COULD_NOT_BE_CREATED', $errors);
         } else {
             // Commit the transaction
-            $this->db_log->commit();
+            $this->db->commit();
         }
     }
 
-    /**
-     * Try to save data in DB
+    /** Try to save data in DB
+     * @param Model $element
+     * @param string $customMessage
+     * @return bool
+     * @throws ResponseException
      */
     public function tryToSaveData($element, $customMessage = 'common.THERE_HAS_BEEN_AN_ERROR')
     {
@@ -48,14 +68,16 @@ class Controller extends \Phalcon\Mvc\Controller {
             foreach ($element->getMessages() as $message) {
                 $errors[] = $message->getMessage();
             }
-            $this->buildErrorResponse(400, $customMessage, $errors);
+            throw new ResponseException(400, $customMessage, $errors);
         } else {
             return true;
         }
     }
 
-    /**
-     * Try to delete data in DB
+    /** Try to delete data in DB
+     * @param Model $element
+     * @return void
+     * @throws ResponseException
      */
     public function tryToDeleteData($element)
     {
@@ -65,14 +87,17 @@ class Controller extends \Phalcon\Mvc\Controller {
             foreach ($element->getMessages() as $message) {
                 $errors[] = $message->getMessage();
             }
-            $this->buildErrorResponse(400, 'common.COULD_NOT_BE_DELETED', $errors);
-        } else {
-            return true;
+            throw new ResponseException(400, 'common.COULD_NOT_BE_DELETED', $errors);
         }
     }
 
-    /**
-     * Build options for listings
+    /** Build options for listings
+     * @param $defaultSort
+     * @param $sort
+     * @param $order
+     * @param $limit
+     * @param $offset
+     * @return array
      */
     public function buildOptions($defaultSort, $sort, $order, $limit, $offset)
     {
@@ -102,8 +127,9 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $options;
     }
 
-    /**
-     * Build filters for listings
+    /** Build filters for listings
+     * @param $filter
+     * @return array
      */
     public function buildFilters($filter)
     {
@@ -124,8 +150,11 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $filters;
     }
 
-    /**
-     * Build listing object
+    /** Build listing object
+     * @param Model $elements
+     * @param $rows
+     * @param $total
+     * @return array
      */
     public function buildListingObject($elements, $rows, $total)
     {
@@ -136,8 +165,11 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $data;
     }
 
-    /**
-     * Calculates total rows for an specified model
+    /** Calculates total rows for an specified model
+     * @param Model|string $model
+     * @param $conditions
+     * @param $parameters
+     * @return mixed
      */
     public function calculateTotalElements($model, $conditions, $parameters)
     {
@@ -150,8 +182,11 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $total;
     }
 
-    /**
-     * Find element by ID from an specified model
+    /** Find element by ID from an specified model
+     * @param Model|string $model
+     * @param mixed $id
+     * @return mixed
+     * @throws ResponseException
      */
     public function findElementById($model, $id)
     {
@@ -166,13 +201,21 @@ class Controller extends \Phalcon\Mvc\Controller {
             )
         );
         if (!$element) {
-            $this->buildErrorResponse(404, 'common.NOT_FOUND');
+            throw new ResponseException(404, 'common.NOT_FOUND');
         }
         return $element;
     }
 
-    /**
-     * Find elements from an specified model
+    /** Find elements from an specified model
+     * @param Model|string $model
+     * @param $conditions
+     * @param $parameters
+     * @param $columns
+     * @param $order_by
+     * @param $offset
+     * @param $limit
+     * @return mixed
+     * @throws ResponseException
      */
     public function findElements($model, $conditions, $parameters, $columns, $order_by, $offset, $limit)
     {
@@ -187,25 +230,28 @@ class Controller extends \Phalcon\Mvc\Controller {
             )
         );
         if (!$elements) {
-            $this->buildErrorResponse(404, 'common.NO_RECORDS');
+            throw new ResponseException( 404, 'common.NO_RECORDS');
         }
         return $elements;
     }
 
-    /**
-     * Check if there is missing data from the request
+    /** Check if there is missing data from the request
+     * @param $array
+     * @throws ResponseException
      */
     public function checkForEmptyData($array)
     {
         foreach ($array as $value) {
             if (empty($value)) {
-                $this->buildErrorResponse(400, 'common.INCOMPLETE_DATA_RECEIVED');
+                throw new ResponseException(400, 'common.INCOMPLETE_DATA_RECEIVED');
             }
         }
     }
 
-    /**
-     * uset a properties from an array
+    /** unset a properties from an array
+     * @param $array
+     * @param $remove
+     * @return mixed
      */
     public function unsetPropertyFromArray($array, $remove)
     {
@@ -215,8 +261,9 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $array;
     }
 
-    /**
-     * Generated NOW datetime based on a timezone
+    /** Generated NOW datetime based on a timezone
+     * @return DateTime|string
+     * @throws Exception
      */
     public function getNowDateTime()
     {
@@ -226,8 +273,10 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $now;
     }
 
-    /**
-     * Generated NOW datetime based on a timezone and added XX minutes
+    /** Generated NOW datetime based on a timezone and added XX minutes
+     * @param $minutes_to_add
+     * @return DateTime|string
+     * @throws Exception
      */
     public function getNowDateTimePlusMinutes($minutes_to_add)
     {
@@ -238,16 +287,19 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $now;
     }
 
-    /**
-     * Converts ISO8601 date to DateTime UTC
+    /** Converts ISO8601 date to DateTime UTC
+     * @param $date
+     * @return false|string
      */
     public function iso8601_to_utc($date)
     {
         return $datetime = date('Y-m-d H:i:s', strtotime($date));
     }
 
-    /**
-     * Converts DateTime UTC date to ISO8601
+    /** Converts DateTime UTC date to ISO8601
+     * @param $date
+     * @return string|null
+     * @throws Exception
      */
     public function utc_to_iso8601($date)
     {
@@ -259,8 +311,11 @@ class Controller extends \Phalcon\Mvc\Controller {
         }
     }
 
-    /**
-     * Array push associative.
+    /** Array push associative.
+     * @param $array
+     * @param $key
+     * @param $value
+     * @return mixed
      */
     public function array_push_assoc($array, $key, $value)
     {
@@ -268,11 +323,14 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $array;
     }
 
-    /**
-     * Generates limits for queries.
+    /** Generates limits for queries.
+     * @param $limit
+     * @return int
      */
     public function getQueryLimit($limit)
     {
+        $setLimit = null;
+
         if ($limit != '') {
             if ($limit > 150) {
                 $setLimit = 150;
@@ -329,24 +387,27 @@ class Controller extends \Phalcon\Mvc\Controller {
         }
     }
 
-    /**
-     * Encode token.
+    /** Encode token.
+     * @param $data
+     * @return mixed
      */
     public function encodeToken($data)
     {
         // Encode token
         $token_encoded = $this->jwt->encode($data, $this->tokenConfig['secret']);
-        $token_encoded = $this->mycrypt->encryptBase64($token_encoded);
+        $token_encoded = $this->crypt->encryptBase64($token_encoded);
         return $token_encoded;
     }
 
-    /**
-     * Decode token.
+    /** Decode token.
+     * @param $token
+     * @return object
+     * @throws Mismatch
      */
     public function decodeToken($token)
     {
         // Decode token
-        $token = $this->mycrypt->decryptBase64($token);
+        $token = $this->crypt->decryptBase64($token);
         $token = $this->jwt->decode($token, $this->tokenConfig['secret'], array('HS256'));
         return $token;
     }
@@ -362,6 +423,10 @@ class Controller extends \Phalcon\Mvc\Controller {
         return $authQuery ? $authQuery : $this->parseBearerValue($authHeader);
     }
 
+    /**
+     * @param $string
+     * @return string|string[]|null
+     */
     protected function parseBearerValue($string)
     {
         if (strpos(trim($string), 'Bearer') !== 0) {
@@ -370,11 +435,15 @@ class Controller extends \Phalcon\Mvc\Controller {
         return preg_replace('/.*\s/', '', $string);
     }
 
-    /**
-     * Builds success responses.
+    /** Builds success responses.
+     * @param $code
+     * @param $messages
+     * @param string $data
      */
     public function buildSuccessResponse($code, $messages, $data = '')
     {
+        $status = null;
+
         switch ($code) {
             case 200:
                 $status = 'OK';
@@ -397,11 +466,15 @@ class Controller extends \Phalcon\Mvc\Controller {
         die();
     }
 
-    /**
-     * Builds error responses.
+    /** Builds error responses.
+     * @param $code
+     * @param $messages
+     * @param string $data
      */
     public function buildErrorResponse($code, $messages, $data = '')
     {
+        $status = null;
+
         switch ($code) {
             case 400:
                 $status = 'Bad Request';

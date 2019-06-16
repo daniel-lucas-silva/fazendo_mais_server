@@ -12,6 +12,7 @@ $app = new Micro($di);
 
 /**
  * ACL checks
+ * @noinspection PhpParamsInspection
  */
 $app->before(new Acl());
 
@@ -23,7 +24,20 @@ $index->setHandler('App\Controller\IndexController', true);
 $index->get('/', 'index');
 $app->mount($index);
 
-
+/**
+ * User routes
+ */
+$users = new Collection();
+$users->setHandler('App\Controller\UsersController', true);
+$users->setPrefix('/users');
+$users->get('/', 'fetch');
+$users->post('/', 'create');
+$users->get('/{id}', 'get');
+$users->patch('/{id}', 'update');
+$users->delete('/{id}', 'delete');
+$users->post('/login', 'login');
+$users->patch('/change-password/{id}', 'changePassword');
+$app->mount($users);
 
 /**
  * Not Found handler

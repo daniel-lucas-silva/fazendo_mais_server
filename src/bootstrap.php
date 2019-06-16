@@ -100,20 +100,6 @@ try {
     });
 
     /**
-     * Another Database connection is created based in the parameters defined in the configuration file
-     */
-    $di->setShared('dbLog', function () {
-        $config = $this->getConfig();
-
-        $dbConfig = $config->log_database->toArray();
-
-        $connection = new Mysql($dbConfig);
-        $connection->setNestedTransactionsWithSavepoints(true);
-
-        return $connection;
-    });
-
-    /**
      * Registering an autoloader
      */
     $loader = new Loader();

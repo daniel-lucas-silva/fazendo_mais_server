@@ -4,14 +4,13 @@ namespace App\Models;
 
 use Phalcon\Validation;
 use Phalcon\Validation\Validator\Email as EmailValidator;
-use Phalcon\Validation\Validator\Uniqueness as UniquenessValidator;
-use Phalcon\Validation\Validator\PresenceOf;
+//use Phalcon\Validation\Validator\Uniqueness as UniquenessValidator;
+//use Phalcon\Validation\Validator\PresenceOf;
 use Phalcon\Mvc\Model;
 
 /**
- * Class User
+ * Class UserAccess
  * @package App\Models
- * @property integer $id
  */
 class UserAccess extends Model {
 
@@ -41,9 +40,7 @@ class UserAccess extends Model {
     }
 
     /**
-     * Validations and business logic
-     *
-     * @return boolean
+     * @return bool
      */
     public function validation()
     {
@@ -56,8 +53,6 @@ class UserAccess extends Model {
     }
 
     /**
-     * Returns table name mapped in the model.
-     *
      * @return string
      */
     public function getSource()
@@ -66,9 +61,6 @@ class UserAccess extends Model {
     }
 
     /**
-     * Independent Column Mapping.
-     * Keys are the real names in the table and the values their names in the application
-     *
      * @return array
      */
     public function columnMap()

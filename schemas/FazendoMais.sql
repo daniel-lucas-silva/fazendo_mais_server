@@ -2,11 +2,12 @@ CREATE TABLE `posts`
 (
   `id` integer PRIMARY KEY,
   `author_id` integer,
-  `categories` text,
+  `categories` json,
   `title` varchar(255),
   `slug` varchar(255),
+  `excerpt` text,
   `content` longtext,
-  `status` enum('published'),
+  `status` enum('published', 'draft') DEFAULT 'draft',
   `approved` boolean,
   `published_at` datetime,
   `deleted_at` datetime,
@@ -17,7 +18,8 @@ CREATE TABLE `posts`
 CREATE TABLE `entities`
 (
   `id` integer PRIMARY KEY,
-  `categories` text,
+  `categories` json,
+  `address_id` integer,
   `slug` varchar(255),
   `name` varchar(255),
   `about` longtext,
@@ -139,7 +141,25 @@ CREATE TABLE `searches`
   `created_at` datetime
 );
 
-CREATE TABLE `subscribers`
+CREATE TABLE `plans`
+(
+  `id` integer PRIMARY KEY,
+  `amount` integer,
+  `days` integer,
+  `name` varchar(255)
+);
+
+CREATE TABLE `subscriptions`
+(
+  `id` integer PRIMARY KEY,
+  `user_id` integer,
+  `subscription_id` integer,
+  `amount` integer,
+  `plan_id` integer,
+  `entity_id` integer
+);
+
+CREATE TABLE `entity_subscribers`
 (
   `user_id` integer,
   `entity_id` integer
@@ -166,7 +186,6 @@ CREATE TABLE `users`
   `username` varchar(255),
   `password` varchar(255),
   `name` varchar(255),
-  `description` varchar(255),
   `avatar` varchar(255),
   `role` varchar(255),
   `active` boolean,
@@ -207,9 +226,8 @@ CREATE TABLE `payment_data`
 (
   `id` integer PRIMARY KEY,
   `user_id` integer,
-  `documents` text,
-  `phone_numbers` text,
-  `billing_address` text,
+  `documents` json,
+  `phone_numbers` json,
   `birthday` date
 );
 
@@ -225,12 +243,35 @@ CREATE TABLE `addresses`
   `state` char,
   `country` char,
   `zipcode` varchar(255),
-  `coordinates` varchar(255),
+  `coordinates` point,
   `addressable_id` integer,
-  `addressable_type` varchar(255),
+  `addressable_type` enum('user', 'entity'),
   `created_at` datetime,
   `updated_at` datetime
 );
+
+CREATE TABLE `address_type`
+(
+  `id` integer PRIMARY KEY,
+  `type` varchar(100),
+  `title` varchar(100)
+);
+
+CREATE TABLE `tags`
+(
+  `id` integer PRIMARY KEY,
+  `name` varchar(100),
+  `created_at` datetime,
+  `updated_at` datetime
+);
+
+CREATE TABLE `taggable`
+(
+  `tag_id` integer,
+  `taggable_id` integer,
+  `taggable_type` enum('post', 'entity')
+);
+
 
 ALTER TABLE `posts` ADD FOREIGN KEY (`author_id`) REFERENCES `users` (`id`);
 
@@ -238,16 +279,26 @@ ALTER TABLE `categories` ADD FOREIGN KEY (`parent_id`) REFERENCES `categories` (
 
 ALTER TABLE `comments` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
+ALTER TABLE `entities` ADD FOREIGN KEY (`address_id`) REFERENCES `addresses` (`id`);
+
 ALTER TABLE `pages` ADD FOREIGN KEY (`author_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `reports` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `searches` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
-ALTER TABLE `subscribers` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+ALTER TABLE `subscriptions` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
-ALTER TABLE `subscribers` ADD FOREIGN KEY (`entity_id`) REFERENCES `entities` (`id`);
+ALTER TABLE `subscriptions` ADD FOREIGN KEY (`entity_id`) REFERENCES `entities` (`id`);
+
+ALTER TABLE `subscriptions` ADD FOREIGN KEY (`plan_id`) REFERENCES `plans` (`id`);
+
+ALTER TABLE `entity_subscribers` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+
+ALTER TABLE `entity_subscribers` ADD FOREIGN KEY (`entity_id`) REFERENCES `entities` (`id`);
 
 ALTER TABLE `users` ADD FOREIGN KEY (`entity_id`) REFERENCES `entities` (`id`);
 
 ALTER TABLE `payment_data` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+
+ALTER TABLE `taggable` ADD FOREIGN KEY (`tag_id`) REFERENCES `tags` (`id`);
